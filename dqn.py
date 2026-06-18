@@ -35,7 +35,17 @@ class Memory(object):
         self.memory.append(Transition(*args))
     
     def sample(self, batch_size): # randomly samples a batch from the memory
-        return random.sample(self.memory, batch_size)
+        batch = random.sample(self.memory, batch_size)
+        state_batch, action_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
+
+        # turn everything into tensors
+        state_batch = torch.tensor(np.array(state_batch), dtype=torch.float32) 
+        action_batch = torch.LongTensor(action_batch).unsqueeze(1) # adds dimension but this time at position 1
+        reward_batch = torch.FloatTensor(reward_batch) 
+        next_state_batch = torch.tensor(np.array(next_state_batch), dtype=torch.float32)
+        done_batch = torch.FloatTensor(done_batch)
+
+        return state_batch, action_batch, reward_batch, next_state_batch, done_batch
     
     def __len__(self): # returns the size of the memory
         return len(self.memory)
@@ -55,7 +65,7 @@ input_dimensions = env.observation_space.shape[0] # based off the shape of the e
 output_dimensions = env.action_space.n # based off the number of action spaces of the environment (2 for cart pole)
 critic = DQN(input_dimensions, output_dimensions, 3) # critic network
 
-optimizer = optim.Adam(critic.parameters(), lr = learning_rate) # optimizer for critic based off defined learning rate
+optimizer = optim.AdamW(critic.parameters(), lr = learning_rate, amsgrad=True) # optimizer for critic based off defined learning rate
 memory = Memory(memory_size) # the memory of the optimizer with defined max length
 
 # action selection
@@ -70,17 +80,8 @@ def select_action(state, epsilon): # selects an action (random or not based on e
 def optimize_model():
     if len(memory) < batch_size: # if the memory is smaller than batch size then it wont optimize
         return
-
-    # TODO: custom memory class 
-    batch = memory.sample(batch_size) # randomly samples a batch of batch_size from the memory
-    state_batch, action_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
-
-    # turn everything into tensors
-    state_batch = torch.tensor(np.array(state_batch), dtype=torch.float32) 
-    action_batch = torch.LongTensor(action_batch).unsqueeze(1) # adds dimension but this time at position 1
-    reward_batch = torch.FloatTensor(reward_batch) 
-    next_state_batch = torch.tensor(np.array(next_state_batch), dtype=torch.float32)
-    done_batch = torch.FloatTensor(done_batch)
+    
+    state_batch, action_batch, reward_batch, next_state_batch, done_batch = memory.sample(batch_size) # randomly samples a batch of batch_size from the memory
 
     q_values = critic(state_batch).gather(1, action_batch).squeeze() # predicts q-values for all actions and extracts value of action actually taken
 
