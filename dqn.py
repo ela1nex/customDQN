@@ -51,19 +51,23 @@ class Memory(object):
         return len(self.memory)
 
 # hyper params
-learning_rate = 0.001
-gamma = 0.995
-epsilon = 0.8
-epsilon_min = 0.01
-epsilon_decay = 0.995
-batch_size = 64
-memory_size = 10000
-episodes = 1000
+learning_rate = 0.001 # learning rate of optimizer
+gamma = 0.995 # discount factor
+epsilon = 0.8 # starting epsilon value (random action chance)
+epsilon_min = 0.01 # ending epsilon value
+epsilon_decay = 0.995 # epsilon decay rate
+batch_size = 64 # number of transitions sampled from replay buffer
+memory_size = 10000 # number of transitions stored for sampling
+episodes = 1000 # episodes to train
+tau = 0.005 # update rate of target network
 
-# q-network initialization TODO: target network
+# q-network initialization
 input_dimensions = env.observation_space.shape[0] # based off the shape of the environment (4 for cart pole)
 output_dimensions = env.action_space.n # based off the number of action spaces of the environment (2 for cart pole)
 critic = DQN(input_dimensions, output_dimensions, 3) # critic network
+target = DQN(input_dimensions, output_dimensions, 3) # target network
+target.load_state_dict(critic.state_dict()) # copies weights from critic network
+target.eval() # switches from training mode to evaluation mode
 
 optimizer = optim.AdamW(critic.parameters(), lr = learning_rate, amsgrad=True) # optimizer for critic based off defined learning rate
 memory = Memory(memory_size) # the memory of the optimizer with defined max length
@@ -86,7 +90,7 @@ def optimize_model():
     q_values = critic(state_batch).gather(1, action_batch).squeeze() # predicts q-values for all actions and extracts value of action actually taken
 
     with torch.no_grad(): # does not remember operations   
-        max_next_q_values = critic(next_state_batch).max(1)[0] # outputs best possible q-value from next state
+        max_next_q_values = target(next_state_batch).max(1)[0] # outputs best possible q-value from next state
         target_q_values = reward_batch + gamma * max_next_q_values * (1-done_batch) # calculates immediate reward and future estimated reward
     
     loss = nn.MSELoss()(q_values, target_q_values) # calculates distance from predicated q-values to target q-value
@@ -115,6 +119,13 @@ for episode in range(episodes): # runs five episodes
         episode_reward += reward # adds step reward to episode reward
 
         optimize_model()
+
+        # uses tau to soft update the target network weights
+        target_state_dict = target.state_dict()
+        critic_state_dict = critic.state_dict()
+        for key in critic_state_dict:
+            target_state_dict[key] = critic_state_dict[key]*tau + target_state_dict[key]*(1-tau)
+        target.load_state_dict(target_state_dict)
 
         steps += 1
     
