@@ -4,10 +4,10 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
-from collections import deque
+from collections import deque, namedtuple
 
 # environment
-env = gym.make("CartPole-v1", render_mode="rgb_array") # creates the env
+env = gym.make("CartPole-v1", render_mode="human") # creates the env
 
 # dqn
 class DQN(nn.Module): # subclasses nn.Module
@@ -25,6 +25,21 @@ class DQN(nn.Module): # subclasses nn.Module
         x = self.nn[-1](x) # returns output 
         return x
 
+# memory
+Transition = namedtuple('Transition', ['state', 'action', 'next_state', 'reward', 'done'])
+class Memory(object): 
+    def __init__(self, memory_size): # initializes the memory as a deque with a given max size 
+        self.memory = deque([], maxlen=memory_size)
+    
+    def push(self, *args): # pushes a transition into the memory
+        self.memory.append(Transition(*args))
+    
+    def sample(self, batch_size): # randomly samples a batch from the memory
+        return random.sample(self.memory, batch_size)
+    
+    def __len__(self): # returns the size of the memory
+        return len(self.memory)
+
 # hyper params
 learning_rate = 0.001
 gamma = 0.995
@@ -35,13 +50,13 @@ batch_size = 64
 memory_size = 10000
 episodes = 1000
 
-# q-network initialization
+# q-network initialization TODO: target network
 input_dimensions = env.observation_space.shape[0] # based off the shape of the environment (4 for cart pole)
 output_dimensions = env.action_space.n # based off the number of action spaces of the environment (2 for cart pole)
 critic = DQN(input_dimensions, output_dimensions, 3) # critic network
 
 optimizer = optim.Adam(critic.parameters(), lr = learning_rate) # optimizer for critic based off defined learning rate
-memory = deque(maxlen=memory_size) # the memory of the optimizer with defined max length
+memory = Memory(memory_size) # the memory of the optimizer with defined max length
 
 # action selection
 def select_action(state, epsilon): # selects an action (random or not based on epsilon)
@@ -57,20 +72,20 @@ def optimize_model():
         return
 
     # TODO: custom memory class 
-    batch = random.sample(memory, batch_size) # randomly samples a batch of batch_size from the memory
-    state_batch, action_batch, reward_batch, next_batch, done_batch = zip(*batch)
+    batch = memory.sample(batch_size) # randomly samples a batch of batch_size from the memory
+    state_batch, action_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
 
     # turn everything into tensors
     state_batch = torch.tensor(np.array(state_batch), dtype=torch.float32) 
     action_batch = torch.LongTensor(action_batch).unsqueeze(1) # adds dimension but this time at position 1
     reward_batch = torch.FloatTensor(reward_batch) 
-    next_batch = torch.tensor(np.array(next_batch), dtype=torch.float32)
+    next_state_batch = torch.tensor(np.array(next_state_batch), dtype=torch.float32)
     done_batch = torch.FloatTensor(done_batch)
 
     q_values = critic(state_batch).gather(1, action_batch).squeeze() # predicts q-values for all actions and extracts value of action actually taken
 
     with torch.no_grad(): # does not remember operations   
-        max_next_q_values = critic(next_batch).max(1)[0] # outputs best possible q-value from next state
+        max_next_q_values = critic(next_state_batch).max(1)[0] # outputs best possible q-value from next state
         target_q_values = reward_batch + gamma * max_next_q_values * (1-done_batch) # calculates immediate reward and future estimated reward
     
     loss = nn.MSELoss()(q_values, target_q_values) # calculates distance from predicated q-values to target q-value
@@ -79,7 +94,7 @@ def optimize_model():
     loss.backward() # computes gradients of loss w.r.t. model parameters
     optimizer.step() # updatse network weights 
 
-# training loop
+# training loop TODO print info
 rewards = [] # rewards for each episode
 steps = 0 # number of training steps taken
 for episode in range(episodes): # runs five episodes
@@ -91,11 +106,11 @@ for episode in range(episodes): # runs five episodes
 
     while not terminated and not truncated:
         action = select_action(state, epsilon) # picks action based on current state and epsilon
-        next, reward, terminated, truncated, info = env.step(action) # gets the feedback from the environment
+        next_state, reward, terminated, truncated, info = env.step(action) # gets the feedback from the environment
 
-        memory.append((state, action, reward, next, terminated or truncated)) # add step to memory
+        memory.push(state, action, reward, next_state, terminated or truncated) # add step to memory
 
-        state = next # updates current state
+        state = next_state # updates current state
         episode_reward += reward # adds step reward to episode reward
 
         optimize_model()
