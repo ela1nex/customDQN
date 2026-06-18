@@ -4,10 +4,11 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
+import cv2
 from collections import deque, namedtuple
 
 # environment
-env = gym.make("CartPole-v1", render_mode="human") # creates the env
+env = gym.make("CartPole-v1") # creates the env
 
 # dqn
 class DQN(nn.Module): # subclasses nn.Module
@@ -58,10 +59,10 @@ epsilon_min = 0.01 # ending epsilon value
 epsilon_decay = 0.995 # epsilon decay rate
 batch_size = 64 # number of transitions sampled from replay buffer
 memory_size = 10000 # number of transitions stored for sampling
-episodes = 1000 # episodes to train
+episodes = 500 # episodes to train
 tau = 0.005 # update rate of target network
 verbose = 1 # training info printing
-log_interval = 100 # interval of training steps to print info
+log_interval = 10 # interval of training steps to print info
 
 # q-network initialization
 input_dimensions = env.observation_space.shape[0] # based off the shape of the environment (4 for cart pole)
@@ -75,7 +76,7 @@ optimizer = optim.AdamW(critic.parameters(), lr = learning_rate, amsgrad=True) #
 memory = Memory(memory_size) # the memory of the optimizer with defined max length
 
 # action selection
-def select_action(state, epsilon): # selects an action (random or not based on epsilon)
+def select_action(state, epsilon, env): # selects an action (random or not based on epsilon)
     if random.random() < epsilon: # random for epsilon*100 percent of the time
         return env.action_space.sample() # explores
     else:
@@ -95,15 +96,16 @@ def optimize_model():
         max_next_q_values = target(next_state_batch).max(1)[0] # outputs best possible q-value from next state
         target_q_values = reward_batch + gamma * max_next_q_values * (1-done_batch) # calculates immediate reward and future estimated reward
     
-    loss = nn.MSELoss()(q_values, target_q_values) # calculates distance from predicated q-values to target q-value
+    critic_loss = nn.MSELoss()(q_values, target_q_values) # calculates distance from predicated q-values to target q-value
     global last_loss
-    last_loss = loss.item()
+    last_loss = critic_loss.item()
 
     optimizer.zero_grad() # clears old gradients
-    loss.backward() # computes gradients of loss w.r.t. model parameters
+    critic_loss.backward() # computes gradients of loss w.r.t. model parameters
     optimizer.step() # updatse network weights 
 
 def average(data, window=log_interval):
+    window = min(len(data), window)
     return sum(data[-window:])/window
 
 # training loop
@@ -119,7 +121,7 @@ for episode in range(episodes): # runs given number of episodes
     truncated = False
 
     while not terminated and not truncated:
-        action = select_action(state, epsilon) # picks action based on current state and epsilon
+        action = select_action(state, epsilon, env) # picks action based on current state and epsilon
         next_state, reward, terminated, truncated, info = env.step(action) # gets the feedback from the environment
 
         memory.push(state, action, reward, next_state, terminated or truncated) # add step to memory
@@ -136,15 +138,50 @@ for episode in range(episodes): # runs given number of episodes
             target_state_dict[key] = critic_state_dict[key]*tau + target_state_dict[key]*(1-tau)
         target.load_state_dict(target_state_dict)
 
-        if verbose == 1 and steps%log_interval == 0 and steps != 0:
-            print(f"------------- \nstep: {steps} \nepisode: {episode} \navg length: {average(lengths)} \navg reward: {average(rewards)} \nloss: {last_loss} \nepsilon: {epsilon}")
-
         steps += 1
     
+    if verbose == 1 and episode%log_interval == 0 and episode != 0:
+            print(f"------------- \nstep: {steps} \nepisode: {episode} \navg length: {average(lengths)} \navg reward: {average(rewards)} \nloss: {last_loss} \nepsilon: {epsilon}")
+
     epsilon = max(epsilon_min, epsilon_decay * epsilon) # decays epsilon
 
     episode_length = steps - episode_length # calculates length of current episode
     lengths.append(episode_length) # adds episode length to lengths list
     rewards.append(episode_reward) # adds episode reward to rewards list
 
-# TODO testing loop
+torch.save(critic, "model.pth")
+
+# testing loop
+render_env = gym.make("CartPole-v1", render_mode="rgb_array")
+state, info = render_env.reset()
+
+terminated = False
+truncated = False
+
+episode_reward = 0
+frames = []
+
+while not terminated and not truncated:
+    action = select_action(state, 0, render_env)
+    next_state, reward, terminated, truncated, info = render_env.step(action)
+    frames.append(render_env.render())
+
+    state = next_state
+    episode_reward += reward
+
+render_env.close()
+
+height, width, layers = frames[0].shape
+video_size = (width, height)
+fps = 30
+
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+video = cv2.VideoWriter('customdqn_cartpole.mp4', fourcc, fps, video_size)
+
+print(len(frames))
+
+for frame in frames:
+    bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    video.write(bgr_frame)
+
+video.release()
