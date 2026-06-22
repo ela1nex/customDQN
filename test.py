@@ -1,7 +1,8 @@
 import gymnasium as gym
 import cv2
+import torch
 
-from dqn import *
+from agent import select_action
 
 # testing loop TODO: implement usage of dynamics model
 render_env = gym.make("CartPole-v1", render_mode="rgb_array")

@@ -1,7 +1,8 @@
 import gymnasium as gym
 import torch
 
-from dqn import *
+from configs import *
+from agent import *
 
 # environment
 env = gym.make("CartPole-v1") # creates the env
