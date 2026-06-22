@@ -2,9 +2,14 @@ import gymnasium as gym
 import cv2
 import torch
 
-from agent import select_action
+from agent import critic, dynamic, select_action, select_planned_action
 
-# testing loop TODO: implement usage of dynamics model
+critic.load_state_dict(torch.load("critic.pth"))
+critic.eval()
+dynamic.load_state_dict(torch.load("dynamic.pth"))
+dynamic.eval()
+
+# testing loop
 render_env = gym.make("CartPole-v1", render_mode="rgb_array")
 state, info = render_env.reset()
 
@@ -15,7 +20,9 @@ episode_reward = 0
 frames = []
 
 while not terminated and not truncated:
-    action = select_action(state, 0, render_env)
+    # action = select_action(state, 0, render_env)
+    action = select_planned_action(state)
+    
     next_state, reward, terminated, truncated, info = render_env.step(action)
     frames.append(render_env.render())
 

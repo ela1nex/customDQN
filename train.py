@@ -4,6 +4,10 @@ import torch
 from configs import *
 from agent import *
 
+def average(data, window=log_interval):
+    window = min(len(data), window)
+    return sum(data[-window:])/window
+
 # environment
 env = gym.make("CartPole-v1") # creates the env
 
@@ -23,12 +27,13 @@ for episode in range(episodes): # runs given number of episodes
         action = select_action(state, epsilon, env) # picks action based on current state and epsilon
         next_state, reward, terminated, truncated, info = env.step(action) # gets the feedback from the environment
 
-        memory.push(state, action, reward, next_state, terminated or truncated) # add step to memory
+        memory.push(state, action, reward, next_state, terminated, truncated) # add step to memory
 
         state = next_state # updates current state
         episode_reward += reward # adds step reward to episode reward
 
-        optimize_model()
+        critic_loss, dynamic_loss = optimize_model()
+        last_critic_loss, last_dynamic_loss = critic_loss, dynamic_loss
 
         # uses tau to soft update the target network weights
         target_state_dict = target.state_dict()
