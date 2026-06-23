@@ -9,7 +9,7 @@ built with pytorch and tested on the cartpole environment from gymnasium.
 - dynamic implementation for model-based planning
 
 # preview
-<video src="customdqn_cartpole_dynamic_example.mp4" width="320" height="240" controls></video>
+![preview](preview.gif)
 
 ## how 2 use
 ### install dependencies
