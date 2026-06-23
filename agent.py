@@ -15,9 +15,10 @@ class Agent():
         self.target.load_state_dict(self.critic.state_dict()) # copies weights from critic network
         self.target.eval() # switches from training mode to evaluation mode
 
-        critic_optimizer = optim.AdamW(self.critic.parameters(), lr=learning_rate, amsgrad=True) # optimizer for critic based off defined learning rate
-        dynamic_optimizer = optim.AdamW(self.dynamic.parameters(), lr=learning_rate, amsgrad=True) # optimizer for dynamic
-        memory = Memory(memory_size) # the memory of the optimizer with defined max length
+        self.critic_optimizer = optim.AdamW(self.critic.parameters(), lr=learning_rate, amsgrad=True) # optimizer for critic based off defined learning rate
+        self.dynamic_optimizer = optim.AdamW(self.dynamic.parameters(), lr=learning_rate, amsgrad=True) # optimizer for dynamic
+        self.memory = Memory(memory_size) # the memory of the optimizer with defined max length
+        self.imagined_memory = Memory(memory_size) # memory for dynamic training
 
     # action selection
     def select_action(self, state, epsilon, env): # selects an action (random or not based on epsilon)
@@ -46,12 +47,19 @@ class Agent():
         self.dynamic_optimizer.zero_grad()
         dynamic_loss.backward()
         self.dynamic_optimizer.step()
+        
+        # collect rollouts from current state batch
+        self.imagine(state_batch)
+        if (len(self.imagined_memory) < batch_size):
+            return 0.0, 0.0
+        d_state_batch, d_action_batch, d_reward_batch, d_next_state_batch, d_done_batch = self.imagined_memory.sample(batch_size) # new sample with imagined experiences 
 
-        q_values = self.critic(state_batch).gather(1, action_batch).squeeze() # predicts q-values for all actions and extracts value of action actually taken
+        # train critic on new data TODO n-step truncation
+        q_values = self.critic(d_state_batch).gather(1, d_action_batch).squeeze() # predicts q-values for all actions and extracts value of action actually taken
 
-        with torch.no_grad(): # does not remember operations   
-            max_next_q_values = self.target(next_state_batch).max(1)[0] # outputs best possible q-value from next state
-            target_q_values = reward_batch + gamma * max_next_q_values * (1-done_batch) # calculates immediate reward and future estimated reward
+        with torch.no_grad(): # does not remember operations
+            max_next_q_values = self.target(d_next_state_batch).max(1)[0] # outputs best possible q-value from next state
+            target_q_values = d_reward_batch + gamma * max_next_q_values * (1-d_done_batch) # calculates immediate reward and future estimated reward
         
         critic_loss = nn.MSELoss()(q_values, target_q_values) # calculates distance from predicated q-values to target q-value
         last_critic_loss = critic_loss.item()
@@ -64,6 +72,7 @@ class Agent():
 
     # dynamic model 
     def dynamic_step(self, state, action):
+        state = torch.FloatTensor(state)
         action_tensor = torch.FloatTensor([[action]]) # change to 1x1 tensor to match batch dimensions
         state_action = torch.cat((state.unsqueeze(0), action_tensor), dim=1) # concatenates state and action
 
@@ -105,5 +114,15 @@ class Agent():
             if value > best_value:
                 best_value = value
                 best_action = action # updates best value and best action
-        
         return best_action
+    
+    def imagine(self, state_batch):
+        for i in range(len(state_batch)):
+            state = state_batch[i].numpy()
+            for _ in range(imagination_rollouts):
+                action = random.randint(0, output_dimensions-1)
+                next_state, reward, done = self.dynamic_step(state, action)
+                self.imagined_memory.push(state, action, reward, next_state.detach().numpy(), done)
+                if done:
+                    break
+                state = next_state.detach().numpy()

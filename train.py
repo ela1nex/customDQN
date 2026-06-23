@@ -13,7 +13,7 @@ env = gym.make("CartPole-v1") # creates the env
 
 agent = Agent()
 
-# training loop TODO: dynamic training
+# training loop
 rewards = [] # rewards for each episode
 lengths = [] # lengths for each episode
 steps = 0 # number of training steps taken
@@ -29,7 +29,7 @@ for episode in range(episodes): # runs given number of episodes
         action = agent.select_action(state, epsilon, env) # picks action based on current state and epsilon
         next_state, reward, terminated, truncated, info = env.step(action) # gets the feedback from the environment
 
-        agent.memory.push(state, action, reward, next_state, terminated, truncated) # add step to memory
+        agent.memory.push(state, action, reward, next_state, terminated or truncated) # add step to memory
 
         state = next_state # updates current state
         episode_reward += reward # adds step reward to episode reward

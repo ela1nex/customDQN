@@ -1,5 +1,5 @@
 # customDQN
-a personal project to create a customizable DQN (deep Q-learning) algorithm with dynamic environment prediction
+a personal project to create a customizable DQN (deep Q-learning) algorithm with dynamic environment prediction and visualize results
 built with pytorch and tested on the cartpole environment from gymnasium.
 
 ## features(?)
@@ -8,6 +8,9 @@ built with pytorch and tested on the cartpole environment from gymnasium.
 - configs file for easy editing (most of) the important parameters
 - dynamic implementation for model-based planning
 
+# preview
+<video src="customdqn_cartpole_dynamic_example.mp4" width="320" height="240" controls></video>
+
 ## how 2 use
 ### install dependencies
 ``` bash
@@ -15,11 +18,11 @@ pip install -r requirements.txt
 ```
 
 ### train (optional)
+see notes before training !!
 change hyperparams in configs.py (also optional)
 ```bash
 python train.py
 ```
-may take several minutes to > an hour depending on number of episodes
 
 ### test
 ```bash
@@ -29,11 +32,15 @@ python test.py
 outputs a `.mp4` file of the agent in the cartpole environment
 
 ## notes
-- untested for environments other than cartpole so it may perchance maybe break bc i may have hardcoded some stuff that should be in configs but hopefully will be fixed soon
+- time taken to train increases significantly with more episodes
+- untested for environments other than cartpole so it may perchance maybe break bc i may have hardcoded some stuff that should be in configs but hopefully will be fixed soon 
+- does not work with nondiscrete environments cos dqn :(
+- training was tested with 4090 and may not run well on cpu
+- default tests with dynamic model but using select_action instead of select_planned_action uses the regular DQN
 
 ## future
-- implement dynamic fully in training and not just testing
+- n-step truncated return 
 
 ---
 
-README last updated 06/22/2026
+README last updated 06/23/2026

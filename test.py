@@ -2,12 +2,14 @@ import gymnasium as gym
 import cv2
 import torch
 
-from agent import critic, dynamic, select_action, select_planned_action
+from agent import *
 
-critic.load_state_dict(torch.load("critic.pth"))
-critic.eval()
-dynamic.load_state_dict(torch.load("dynamic.pth"))
-dynamic.eval()
+agent = Agent()
+
+agent.critic.load_state_dict(torch.load("critic.pth"))
+agent.critic.eval()
+agent.dynamic.load_state_dict(torch.load("dynamic.pth"))
+agent.dynamic.eval()
 
 # testing loop
 render_env = gym.make("CartPole-v1", render_mode="rgb_array")
@@ -20,8 +22,9 @@ episode_reward = 0
 frames = []
 
 while not terminated and not truncated:
-    # action = select_action(state, 0, render_env)
-    action = select_planned_action(state)
+    # both use dynamic model for training so the difference isnt huge but its still noticable
+    # action = agent.select_action(state, 0, render_env) # does not use dynamic model for testing
+    action = agent.select_planned_action(state) # uses dynamic model for testing
     
     next_state, reward, terminated, truncated, info = render_env.step(action)
     frames.append(render_env.render())

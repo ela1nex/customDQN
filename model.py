@@ -25,7 +25,7 @@ class Dynamic(nn.Module):
         
         self.nn.append(nn.Linear(input_dimensions + 1, 256))  # state + action -> 256, wider since harder task than DQN
         self.nn.append(nn.Linear(256, 256))
-        self.nn.append(nn.Linear(256, input_dimensions + 2))  # output: reward + next_state + done
+        self.nn.append(nn.Linear(256, input_dimensions + 2))  # output: next_state + reward + done
     
     def forward(self, x):
         for layer in self.nn[:-1]:
