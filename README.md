@@ -1,5 +1,6 @@
 # customDQN
 a personal project to create a customizable DQN (deep Q-learning) algorithm with dynamic environment prediction and visualize results
+
 built with pytorch and tested on the cartpole environment from gymnasium.
 
 ## features(?)
