@@ -4,7 +4,7 @@ import torch
 from configs import *
 from agent import *
 
-def average(data, window=log_interval):
+def average(data, window=10): # averages last ten episodes
     window = min(len(data), window)
     return sum(data[-window:])/window
 
