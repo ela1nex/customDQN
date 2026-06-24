@@ -19,7 +19,7 @@ class Agent():
         self.dynamic_optimizer = optim.AdamW(self.dynamic.parameters(), lr=learning_rate, amsgrad=True) # optimizer for dynamic
         self.memory = Memory(memory_size) # the memory of the optimizer with defined max length
         self.imagined_memory = Memory(memory_size) # memory for dynamic training
-
+        
     # action selection
     def select_action(self, state, epsilon, env): # selects an action (random or not based on epsilon)
         if random.random() < epsilon: # random for epsilon*100 percent of the time
@@ -32,7 +32,8 @@ class Agent():
     def optimize_model(self):
         if len(self.memory) < batch_size: # if the memory is smaller than batch size then it wont optimize
             return 0.0, 0.0
-        
+        self.imagined_memory.clear() # memory for dynamic training
+
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.memory.sample(batch_size) # randomly samples a batch of batch_size from the memory
 
         state_action_batch = torch.cat((state_batch, action_batch.float()), dim=1) # concatenates state and action batches
@@ -50,10 +51,17 @@ class Agent():
         
         # collect rollouts from current state batch
         self.imagine(state_batch)
-        if (len(self.imagined_memory) < batch_size):
-            return 0.0, 0.0
-        d_state_batch, d_action_batch, d_reward_batch, d_next_state_batch, d_done_batch = self.imagined_memory.sample(batch_size) # new sample with imagined experiences 
-
+        
+        # use both imagined and real data for training critic
+        half = batch_size // 2
+        r_state, r_action, r_reward, r_next_state, r_done = self.memory.sample(half)
+        i_state, i_action, i_reward, i_next_state, i_done = self.imagined_memory.sample(half)
+        d_state_batch = torch.cat([r_state, i_state])
+        d_action_batch = torch.cat([r_action, i_action])
+        d_reward_batch = torch.cat([r_reward, i_reward])
+        d_next_state_batch = torch.cat([r_next_state, i_next_state])
+        d_done_batch = torch.cat([r_done, i_done])
+        
         # train critic on new data TODO n-step truncation
         q_values = self.critic(d_state_batch).gather(1, d_action_batch).squeeze() # predicts q-values for all actions and extracts value of action actually taken
 
@@ -116,13 +124,35 @@ class Agent():
                 best_action = action # updates best value and best action
         return best_action
     
-    def imagine(self, state_batch):
-        for i in range(len(state_batch)):
-            state = state_batch[i].numpy()
-            for _ in range(imagination_rollouts):
-                action = random.randint(0, output_dimensions-1)
-                next_state, reward, done = self.dynamic_step(state, action)
-                self.imagined_memory.push(state, action, reward, next_state.detach().numpy(), done)
-                if done:
-                    break
-                state = next_state.detach().numpy()
+    def imagine(self, state_batch, epsilon=0.05):
+        active_states = state_batch.clone().float()
+        alive = torch.ones(len(state_batch), dtype=torch.bool) # tracks which rollouts are still running
+
+        for _ in range(imagination_rollout_length):
+            if not alive.any():
+                break
+            states = active_states[alive] # only active rollouts
+
+            with torch.no_grad():
+                actions = self.critic(states).argmax(dim=1) # one forward pass for all active states
+                random_actions = torch.randint(0, output_dimensions, (len(states),)) # generates random tensor of floats
+                mask = torch.rand(len(states)) < epsilon # compares to epsilon
+                actions = torch.where(mask, random_actions, actions) # when mask is true take from random_actions, otherwise take from actions
+
+                state_action = torch.cat([states, actions.float().unsqueeze(1)], dim=1)
+                out = self.dynamic(state_action) # one forward pass for all
+
+            rewards = out[:, 0]
+            next_states = out[:, 1:1+input_dimensions]
+            dones = torch.sigmoid(out[:, -1]) > 0.5
+
+            for j in range(len(states)): # add all results into imagined memory
+                self.imagined_memory.push(states[j].numpy(), actions[j].item(), rewards[j].item(), next_states[j].detach().numpy(), float(dones[j].item()))
+
+            # update active_states and alive mask together
+            alive_indices = alive.nonzero(as_tuple=False).squeeze(1)
+            for j, orig_idx in enumerate(alive_indices):
+                if dones[j]:
+                    alive[orig_idx] = False
+                else:
+                    active_states[orig_idx] = next_states[j].detach()

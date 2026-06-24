@@ -24,6 +24,9 @@ class Memory(object):
         done_batch = torch.FloatTensor(done_batch)
 
         return state_batch, action_batch, reward_batch, next_state_batch, done_batch
+
+    def clear(self):
+        self.memory.clear()
     
     def __len__(self): # returns the size of the memory
         return len(self.memory)

@@ -12,7 +12,7 @@ agent.dynamic.load_state_dict(torch.load("dynamic.pth"))
 agent.dynamic.eval()
 
 # testing loop
-render_env = gym.make("CartPole-v1", render_mode="rgb_array")
+render_env = gym.make("CartPole-v1", render_mode="rgb_array", max_episode_steps=5000)
 state, info = render_env.reset()
 
 terminated = False

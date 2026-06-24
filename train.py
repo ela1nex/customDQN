@@ -9,7 +9,7 @@ def average(data, window=log_interval):
     return sum(data[-window:])/window
 
 # environment
-env = gym.make("CartPole-v1") # creates the env
+env = gym.make("CartPole-v1", max_episode_steps=500) # creates the env
 
 agent = Agent()
 
@@ -17,6 +17,8 @@ agent = Agent()
 rewards = [] # rewards for each episode
 lengths = [] # lengths for each episode
 steps = 0 # number of training steps taken
+
+# TODO steps instead of episodes
 for episode in range(episodes): # runs given number of episodes
     state, info = env.reset() # resets environment
     episode_reward = 0 # sets current reward to 0
