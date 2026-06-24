@@ -1,5 +1,6 @@
 import gymnasium as gym
 import torch
+import tqdm
 
 from configs import *
 from agent import *
@@ -28,6 +29,7 @@ terminated = False
 truncated = False
 epsilon_decay_per_step = (epsilon - epsilon_min) / (training_steps * 0.8) # decays epsilon linearly
 
+progress = tqdm.trange(training_steps)
 while steps < training_steps: # runs given number of steps
     if terminated or truncated:
         episode_length = steps - episode_start_step # calculates length of current episode
@@ -59,6 +61,7 @@ while steps < training_steps: # runs given number of steps
 
     steps += 1
     
+    progress.update(1)
     if verbose == 1 and steps%log_interval == 0 and episode != 0:
             print(f"------------- \nstep: {steps} \nepisode: {episode} \navg length: {average(lengths)} \navg reward: {average(rewards)} \ncritic loss: {last_critic_loss} \ndynamic loss: {last_dynamic_loss} \nepsilon: {epsilon}")
 
