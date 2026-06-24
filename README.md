@@ -11,7 +11,7 @@ built with pytorch and tested on the cartpole environment from gymnasium.
 
 # preview
 regular: ![regular (no dynamic)](regular.gif) <br>
-dynamic: ![dynamic](output.gif)
+dynamic: ![dynamic](output.gif) <br>
 trained w default configs
 
 ## how 2 use
