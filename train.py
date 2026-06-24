@@ -26,8 +26,8 @@ episode_length = 0
 episode_start_step = 0
 terminated = False 
 truncated = False
+epsilon_decay_per_step = (epsilon - epsilon_min) / (training_steps * 0.8) # decays epsilon linearly
 
-# TODO steps instead of episodes
 while steps < training_steps: # runs given number of steps
     if terminated or truncated:
         episode_length = steps - episode_start_step # calculates length of current episode
@@ -62,7 +62,7 @@ while steps < training_steps: # runs given number of steps
     if verbose == 1 and steps%log_interval == 0 and episode != 0:
             print(f"------------- \nstep: {steps} \nepisode: {episode} \navg length: {average(lengths)} \navg reward: {average(rewards)} \ncritic loss: {last_critic_loss} \ndynamic loss: {last_dynamic_loss} \nepsilon: {epsilon}")
 
-    epsilon = max(epsilon_min, epsilon_decay * epsilon) # decays epsilon
+    epsilon = max(epsilon_min, epsilon - epsilon_decay_per_step)
 
 torch.save(agent.critic.state_dict(), "critic.pth")
 torch.save(agent.dynamic.state_dict(), "dynamic.pth")

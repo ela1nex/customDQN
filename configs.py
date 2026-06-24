@@ -3,7 +3,6 @@ learning_rate = 0.001 # learning rate of optimizer
 gamma = 0.995 # discount factor
 epsilon = 0.8 # starting epsilon value (random action chance)
 epsilon_min = 0.01 # ending epsilon value
-epsilon_decay = 0.99 # epsilon decay rate
 batch_size = 64 # number of transitions sampled from replay buffer
 memory_size = 10000 # number of transitions stored for sampling
 training_steps = 100000 # steps to train

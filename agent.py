@@ -124,7 +124,7 @@ class Agent():
                 best_action = action # updates best value and best action
         return best_action
     
-    def imagine(self, state_batch, epsilon=0.05):
+    def imagine(self, state_batch, epsilon=epsilon):
         active_states = state_batch.clone().float()
         alive = torch.ones(len(state_batch), dtype=torch.bool) # tracks which rollouts are still running
 
