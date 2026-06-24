@@ -10,7 +10,8 @@ built with pytorch and tested on the cartpole environment from gymnasium.
 - dynamic implementation for model-based planning
 
 # preview
-![preview](preview.gif)
+![regular (no dynamic)](regular.gif) regular <br>
+![dynamic](dynamic.gif) dynamic
 trained w default configs
 
 ## how 2 use
@@ -34,9 +35,9 @@ python test.py
 outputs a `.mp4` file of the agent in the cartpole environment
 
 ## notes
-- time taken to train increases significantly with more episodes
+- time taken to train increases with more episodes
 - training was tested with 4090 and may not run well on cpu
-- untested for environments other than cartpole so it may perchance maybe break bc i may have hardcoded some stuff that should be in configs but hopefully will be fixed soon 
+- untested for environments
 - does not work with nondiscrete environments cos dqn :(
 - default tests with dynamic model but using select_action instead of select_planned_action tests with DQN
 
@@ -45,4 +46,4 @@ outputs a `.mp4` file of the agent in the cartpole environment
 
 ---
 
-README last updated 06/23/2026
+README last updated 06/24/2026
