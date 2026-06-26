@@ -37,7 +37,6 @@ outputs a `.mp4` file of the agent in the cartpole environment
 ## notes
 - time taken to train increases with more episodes
 - training was tested with 4090 and may not run well on cpu
-- untested for environments
 - does not work with nondiscrete environments cos dqn :(
 - default tests with dynamic model but using select_action instead of select_planned_action tests with DQN
 
